@@ -9,13 +9,13 @@
     "aluno"
   ],
   "scripts": {
-    "dev": "concurrently \"pnpm -F backend dev\" \"pnpm -F admin dev\" \"pnpm -F aluno dev\"",
+    "dev": "concurrently \"pnpm -F ./backend dev\" \"pnpm -F ./admin dev\" \"pnpm -F ./aluno dev\"",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "format": "pnpm -r format",
-    "db:migrate": "pnpm -F backend db:migrate",
-    "db:seed": "pnpm -F backend db:seed"
+    "db:migrate": "pnpm -F ./backend db:migrate",
+    "db:seed": "pnpm -F ./backend db:seed"
   },
   "devDependencies": {
     "concurrently": "^9.0.0"
