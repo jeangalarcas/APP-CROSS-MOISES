@@ -2,5 +2,3 @@ packages:
   - 'backend'
   - 'admin'
   - 'aluno'
-allowBuilds:
-  esbuild: true
