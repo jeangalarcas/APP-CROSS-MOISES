@@ -36,10 +36,14 @@ export default function App() {
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/boxes" element={<Boxes />} />
                   <Route path="/boxes/:boxId" element={<BoxDetail />} />
-                  <Route path="/boxes/:boxId/students" element={<Students />} />
-                  <Route path="/boxes/:boxId/classes" element={<Classes />} />
-                  <Route path="/boxes/:boxId/payments" element={<Payments />} />
+                  
+                  {/* Rotas limpas e globais para o menu lateral encontrar! */}
+                  <Route path="/classes" element={<Classes />} />
+                  <Route path="/students" element={<Students />} />
+                  <Route path="/payments" element={<Payments />} />
                   <Route path="/profile" element={<Profile />} />
+                  
+                  {/* Qualquer link errado volta pro começo */}
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
               </Layout>

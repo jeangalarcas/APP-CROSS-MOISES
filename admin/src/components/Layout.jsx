@@ -42,30 +42,21 @@ export default function Layout({ children }) {
             open={sidebarOpen}
           />
           <NavLink
-            to="/boxes"
+            to="/students"  {/* <-- Corrigido! */}
             icon={<Users size={20} />}
             label="Alunos"
             open={sidebarOpen}
           />
           <NavLink
-            to="/boxes"
+            to="/classes"   {/* <-- Corrigido! */}
             icon={<Calendar size={20} />}
             label="Aulas"
             open={sidebarOpen}
           />
           <NavLink
-            to="/boxes"
+            to="/payments"  {/* <-- Corrigido! */}
             icon={<DollarSign size={20} />}
             label="Cobranças"
-            open={sidebarOpen}
-          />
-        </nav>
-
-        <div className="p-4 border-t border-gray-700 space-y-2">
-          <NavLink
-            to="/profile"
-            icon={<User size={20} />}
-            label="Perfil"
             open={sidebarOpen}
           />
           <button
