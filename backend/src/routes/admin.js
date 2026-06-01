@@ -1,238 +1,140 @@
 import express from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import { query } from '../db/index.js';
-import { adminMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Aplicar middleware de admin a todas as rotas
-router.use(adminMiddleware);
+// Função auxiliar: Descobrir qual é o Box que este administrador gerencia
+async function getAdminBoxId(userId) {
+  // Primeiro, tenta ver se ele é o dono (owner) de algum box
+  let result = await query('SELECT id FROM boxes WHERE owner_id = $1', [userId]);
+  if (result.rows.length > 0) return result.rows[0].id;
 
-// ===== BOXES =====
+  // Se não for o dono, vê se ele tem um box_id atrelado ao perfil dele (ex: um professor contratado)
+  result = await query('SELECT box_id FROM users WHERE id = $1', [userId]);
+  return result.rows[0]?.box_id;
+}
 
-// Listar boxes do usuário
-router.get('/boxes', async (req, res) => {
+// ==========================================
+// 1. GERENCIAR AULAS / WODs (Templates)
+// ==========================================
+
+// Listar todos os tipos de aulas do Box
+router.get('/classes', async (req, res) => {
   try {
-    const result = await query(
-      'SELECT * FROM boxes WHERE owner_id = $1 ORDER BY created_at DESC',
-      [req.user.id]
-    );
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Erro ao listar boxes:', error);
-    res.status(500).json({ error: 'Erro ao listar boxes' });
-  }
-});
+    const boxId = await getAdminBoxId(req.user.id);
+    if (!boxId) return res.status(403).json({ error: 'Nenhum Box vinculado a este usuário.' });
 
-// Criar novo box
-router.post('/boxes', async (req, res) => {
-  try {
-    const { name, cnpj, email, phone, address, city, state, zip_code } = req.body;
-
-    if (!name) {
-      return res.status(400).json({ error: 'Nome do box é obrigatório' });
-    }
-
-    const boxId = uuidv4();
-    const result = await query(
-      `INSERT INTO boxes (id, name, cnpj, email, phone, address, city, state, zip_code, owner_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING *`,
-      [boxId, name, cnpj, email, phone, address, city, state, zip_code, req.user.id]
-    );
-
-    res.status(201).json(result.rows[0]);
-  } catch (error) {
-    console.error('Erro ao criar box:', error);
-    res.status(500).json({ error: 'Erro ao criar box' });
-  }
-});
-
-// ===== PLANOS =====
-
-// Listar planos de um box
-router.get('/boxes/:boxId/plans', async (req, res) => {
-  try {
-    const result = await query(
-      'SELECT * FROM plans WHERE box_id = $1 ORDER BY price ASC',
-      [req.params.boxId]
-    );
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Erro ao listar planos:', error);
-    res.status(500).json({ error: 'Erro ao listar planos' });
-  }
-});
-
-// Criar novo plano
-router.post('/boxes/:boxId/plans', async (req, res) => {
-  try {
-    const { name, description, price, duration_days } = req.body;
-
-    if (!name || !price || !duration_days) {
-      return res.status(400).json({ error: 'Nome, preço e duração são obrigatórios' });
-    }
-
-    const planId = uuidv4();
-    const result = await query(
-      `INSERT INTO plans (id, box_id, name, description, price, duration_days)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-      [planId, req.params.boxId, name, description, price, duration_days]
-    );
-
-    res.status(201).json(result.rows[0]);
-  } catch (error) {
-    console.error('Erro ao criar plano:', error);
-    res.status(500).json({ error: 'Erro ao criar plano' });
-  }
-});
-
-// ===== AULAS =====
-
-// Listar aulas de um box
-router.get('/boxes/:boxId/classes', async (req, res) => {
-  try {
-    const result = await query(
-      'SELECT * FROM classes WHERE box_id = $1 ORDER BY name ASC',
-      [req.params.boxId]
-    );
+    const result = await query('SELECT * FROM classes WHERE box_id = $1 ORDER BY created_at DESC', [boxId]);
     res.json(result.rows);
   } catch (error) {
     console.error('Erro ao listar aulas:', error);
-    res.status(500).json({ error: 'Erro ao listar aulas' });
+    res.status(500).json({ error: 'Erro interno ao buscar aulas.' });
   }
 });
 
-// Criar nova aula
-router.post('/boxes/:boxId/classes', async (req, res) => {
+// Criar um novo tipo de aula (Ex: "WOD LPO")
+router.post('/classes', async (req, res) => {
+  const { name, description, capacity, duration_minutes } = req.body;
+
   try {
-    const { name, description, capacity, duration_minutes } = req.body;
+    const boxId = await getAdminBoxId(req.user.id);
+    if (!boxId) return res.status(403).json({ error: 'Nenhum Box vinculado a este usuário.' });
 
-    if (!name) {
-      return res.status(400).json({ error: 'Nome da aula é obrigatório' });
-    }
-
-    const classId = uuidv4();
-    const result = await query(
-      `INSERT INTO classes (id, box_id, name, description, capacity, duration_minutes)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-      [classId, req.params.boxId, name, description, capacity, duration_minutes]
-    );
-
-    res.status(201).json(result.rows[0]);
+    const sql = `
+      INSERT INTO classes (box_id, name, description, capacity, duration_minutes)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `;
+    const result = await query(sql, [boxId, name, description, capacity || 20, duration_minutes || 60]);
+    
+    res.status(201).json({ message: 'Aula criada com sucesso!', class: result.rows[0] });
   } catch (error) {
     console.error('Erro ao criar aula:', error);
-    res.status(500).json({ error: 'Erro ao criar aula' });
+    res.status(500).json({ error: 'Erro ao cadastrar nova aula.' });
   }
 });
 
-// ===== AGENDAMENTOS =====
+// ==========================================
+// 2. GERENCIAR A AGENDA (Horários reais)
+// ==========================================
 
-// Listar agendamentos de uma aula
-router.get('/classes/:classId/schedules', async (req, res) => {
+// Listar a agenda do Box
+router.get('/schedules', async (req, res) => {
   try {
-    const result = await query(
-      'SELECT * FROM schedules WHERE class_id = $1 ORDER BY scheduled_date ASC',
-      [req.params.classId]
-    );
+    const boxId = await getAdminBoxId(req.user.id);
+    if (!boxId) return res.status(403).json({ error: 'Nenhum Box vinculado a este usuário.' });
+
+    const sql = `
+      SELECT 
+        s.*, 
+        c.name AS class_name,
+        (SELECT COUNT(*) FROM reservations r WHERE r.schedule_id = s.id) AS booked_spots
+      FROM schedules s
+      JOIN classes c ON s.class_id = c.id
+      WHERE c.box_id = $1
+      ORDER BY s.scheduled_date DESC, s.start_time DESC
+    `;
+    const result = await query(sql, [boxId]);
     res.json(result.rows);
   } catch (error) {
-    console.error('Erro ao listar agendamentos:', error);
-    res.status(500).json({ error: 'Erro ao listar agendamentos' });
+    console.error('Erro ao listar agenda:', error);
+    res.status(500).json({ error: 'Erro interno ao buscar agenda.' });
   }
 });
 
-// Criar novo agendamento
-router.post('/classes/:classId/schedules', async (req, res) => {
-  try {
-    const { scheduled_date, start_time, end_time, capacity } = req.body;
+// Abrir um novo horário na agenda
+router.post('/schedules', async (req, res) => {
+  const { class_id, scheduled_date, start_time, end_time, capacity } = req.body;
 
-    if (!scheduled_date || !start_time || !end_time) {
-      return res.status(400).json({ error: 'Data e horários são obrigatórios' });
+  try {
+    // Busca a capacidade padrão da aula se o professor não tiver definido uma específica
+    let finalCapacity = capacity;
+    if (!finalCapacity) {
+      const classResult = await query('SELECT capacity FROM classes WHERE id = $1', [class_id]);
+      finalCapacity = classResult.rows[0]?.capacity || 20;
     }
 
-    const scheduleId = uuidv4();
-    const result = await query(
-      `INSERT INTO schedules (id, class_id, scheduled_date, start_time, end_time, capacity)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-      [scheduleId, req.params.classId, scheduled_date, start_time, end_time, capacity]
-    );
-
-    res.status(201).json(result.rows[0]);
+    const sql = `
+      INSERT INTO schedules (class_id, scheduled_date, start_time, end_time, capacity)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `;
+    const result = await query(sql, [class_id, scheduled_date, start_time, end_time, finalCapacity]);
+    
+    res.status(201).json({ message: 'Horário aberto com sucesso!', schedule: result.rows[0] });
   } catch (error) {
-    console.error('Erro ao criar agendamento:', error);
-    res.status(500).json({ error: 'Erro ao criar agendamento' });
+    console.error('Erro ao abrir horário na agenda:', error);
+    res.status(500).json({ error: 'Erro ao abrir novo horário.' });
   }
 });
 
-// ===== ALUNOS =====
+// ==========================================
+// 3. VER A LISTA DE CHAMADA (Check-ins)
+// ==========================================
 
-// Listar alunos de um box
-router.get('/boxes/:boxId/students', async (req, res) => {
+// Ver quais alunos estão agendados para um horário específico
+router.get('/schedules/:id/reservations', async (req, res) => {
+  const { id } = req.params;
+
   try {
-    const result = await query(
-      `SELECT s.*, u.name, u.email, p.name as plan_name
-       FROM students s
-       JOIN users u ON s.user_id = u.id
-       LEFT JOIN plans p ON s.plan_id = p.id
-       WHERE s.box_id = $1
-       ORDER BY u.name ASC`,
-      [req.params.boxId]
-    );
+    const sql = `
+      SELECT 
+        r.id AS reservation_id,
+        r.status,
+        r.check_in_time,
+        u.name AS student_name,
+        u.email AS student_email
+      FROM reservations r
+      JOIN students st ON r.student_id = st.id
+      JOIN users u ON st.user_id = u.id
+      WHERE r.schedule_id = $1
+      ORDER BY r.created_at ASC
+    `;
+    const result = await query(sql, [id]);
     res.json(result.rows);
   } catch (error) {
-    console.error('Erro ao listar alunos:', error);
-    res.status(500).json({ error: 'Erro ao listar alunos' });
-  }
-});
-
-// ===== COBRANÇAS =====
-
-// Listar cobranças pendentes
-router.get('/boxes/:boxId/payments', async (req, res) => {
-  try {
-    const result = await query(
-      `SELECT p.*, u.name, u.email
-       FROM payments p
-       JOIN students s ON p.student_id = s.id
-       JOIN users u ON s.user_id = u.id
-       WHERE s.box_id = $1 AND p.status = 'pending'
-       ORDER BY p.due_date ASC`,
-      [req.params.boxId]
-    );
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Erro ao listar cobranças:', error);
-    res.status(500).json({ error: 'Erro ao listar cobranças' });
-  }
-});
-
-// ===== DASHBOARD =====
-
-// Estatísticas do box
-router.get('/boxes/:boxId/stats', async (req, res) => {
-  try {
-    const boxId = req.params.boxId;
-
-    const [students, activeStudents, totalRevenue, pendingPayments] = await Promise.all([
-      query('SELECT COUNT(*) as count FROM students WHERE box_id = $1', [boxId]),
-      query('SELECT COUNT(*) as count FROM students WHERE box_id = $1 AND status = $2', [boxId, 'active']),
-      query('SELECT SUM(amount) as total FROM payments WHERE student_id IN (SELECT id FROM students WHERE box_id = $1) AND status = $2', [boxId, 'paid']),
-      query('SELECT COUNT(*) as count FROM payments WHERE student_id IN (SELECT id FROM students WHERE box_id = $1) AND status = $2', [boxId, 'pending']),
-    ]);
-
-    res.json({
-      totalStudents: parseInt(students.rows[0].count),
-      activeStudents: parseInt(activeStudents.rows[0].count),
-      totalRevenue: parseFloat(totalRevenue.rows[0].total || 0),
-      pendingPayments: parseInt(pendingPayments.rows[0].count),
-    });
-  } catch (error) {
-    console.error('Erro ao obter estatísticas:', error);
-    res.status(500).json({ error: 'Erro ao obter estatísticas' });
+    console.error('Erro ao buscar lista de chamada:', error);
+    res.status(500).json({ error: 'Erro ao buscar alunos matriculados.' });
   }
 });
 
