@@ -19,13 +19,8 @@ const PORT = process.env.PORT || 3001;
 // Middleware de segurança
 app.use(helmet());
 app.use(cors({
-<<<<<<< HEAD
-  origin: process.env.CORS_ORIGIN?.split(',') || 'http://localhost:3000',
-  credentials: true,
-=======
   origin: ['http://localhost:3000', 'https://app-cross-moises-admin.vercel.app'],
   credentials: true
->>>>>>> dd7a40fb6d5eb7d34509ce737984c43de66c79ea
 }));
 
 // Rate limiting
