@@ -15,6 +15,43 @@ async function getAdminBoxId(userId) {
 }
 
 // ==========================================
+// 0. GERENCIAR BOXES (A rota que havia sumido!)
+// ==========================================
+
+// Listar os boxes do usuário logado
+router.get('/boxes', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM boxes WHERE owner_id = $1 ORDER BY created_at DESC', [req.user.id]);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao buscar boxes:', error);
+    res.status(500).json({ error: 'Erro interno ao buscar boxes.' });
+  }
+});
+
+// Criar um novo Box
+router.post('/boxes', async (req, res) => {
+  const { name, cnpj, email, phone, address, city, state, zip_code } = req.body;
+
+  try {
+    const sql = `
+      INSERT INTO boxes (name, cnpj, email, phone, address, city, state, zip_code, owner_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `;
+    const result = await query(sql, [name, cnpj, email, phone, address, city, state, zip_code, req.user.id]);
+    
+    res.status(201).json({ message: 'Box criado com sucesso!', box: result.rows[0] });
+  } catch (error) {
+    console.error('Erro ao criar box:', error);
+    // Tratamento para caso você tente usar o mesmo CNPJ
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Este CNPJ já está cadastrado no sistema.' });
+    }
+    res.status(500).json({ error: 'Erro ao cadastrar novo box.' });
+  }
+});
+// ==========================================
 // 1. GERENCIAR AULAS / WODs (Templates)
 // ==========================================
 
