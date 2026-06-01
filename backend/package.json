@@ -1,0 +1,41 @@
+{
+  "name": "boxos-backend",
+  "version": "1.0.0",
+  "description": "API backend para BoxOS - Painel Admin e App Aluno",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "lint": "eslint src --fix",
+    "format": "prettier --write \"src/**/*.{js,ts,json}\"",
+    "db:migrate": "node src/db/migrate.js",
+    "db:seed": "node src/db/seed.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "pg": "^8.11.3",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.3",
+    "joi": "^17.11.0",
+    "uuid": "^9.0.1",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.6",
+    "@types/pg": "^8.11.2",
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1",
+    "vitest": "^1.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
